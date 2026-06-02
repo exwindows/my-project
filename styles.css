@@ -350,6 +350,7 @@ dd {
 .primary-button,
 .secondary-button,
 .ghost-button,
+.answer-button,
 .danger-button {
   padding: 0 18px;
   font-weight: 900;
@@ -369,6 +370,12 @@ dd {
   border: 1px solid var(--line);
   background: var(--paper);
   color: var(--ink);
+}
+
+.answer-button {
+  border: 1px solid rgba(210, 139, 34, 0.32);
+  background: #fff8ed;
+  color: #925b12;
 }
 
 .danger-button {
@@ -510,6 +517,7 @@ dd {
 
 .practice-actions {
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .mistakes-panel {
@@ -577,7 +585,8 @@ dd {
   }
 
   .answer-row .primary-button,
-  .practice-actions .secondary-button {
+  .practice-actions .secondary-button,
+  .practice-actions .answer-button {
     width: 100%;
   }
 
