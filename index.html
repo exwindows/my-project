@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FORtoefl</title>
+    <link rel="stylesheet" href="styles.css?v=fortoefl-2" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <aside class="library-panel" aria-labelledby="appTitle">
+        <div class="brand-block">
+          <p class="eyebrow">TOEFL Vocabulary</p>
+          <h1 id="appTitle">FORtoefl</h1>
+          <p class="brand-copy">上传词表，凭随机字母提示拼出完整单词。</p>
+        </div>
+
+        <section class="upload-card" aria-labelledby="uploadTitle">
+          <div class="section-title">
+            <h2 id="uploadTitle">词库</h2>
+            <span id="libraryCount">0 words</span>
+          </div>
+
+          <label class="file-drop" for="wordFile">
+            <input id="wordFile" type="file" accept=".csv,.txt,text/csv,text/plain" />
+            <span class="file-icon" aria-hidden="true">+</span>
+            <span>选择 CSV / TXT 词表</span>
+          </label>
+
+          <div class="manual-import">
+            <label for="manualWordText">手动输入文本</label>
+            <textarea
+              id="manualWordText"
+              rows="6"
+              placeholder="abundant,丰富的&#10;coherent,连贯的&#10;precise"
+            ></textarea>
+            <button id="importTextButton" class="secondary-button" type="button">导入文本</button>
+          </div>
+
+          <div class="sample-card" aria-label="词表格式">
+            <code>abundant,丰富的</code>
+            <code>coherent,连贯的</code>
+            <code>precise</code>
+          </div>
+
+          <p id="uploadMessage" class="status-message" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="stats-card" aria-labelledby="statsTitle">
+          <div class="section-title">
+            <h2 id="statsTitle">进度</h2>
+            <button id="resetButton" class="ghost-button" type="button">重新开始</button>
+          </div>
+
+          <dl class="stats-grid">
+            <div>
+              <dt>答题</dt>
+              <dd id="attemptedCount">0</dd>
+            </div>
+            <div>
+              <dt>正确</dt>
+              <dd id="correctCount">0</dd>
+            </div>
+            <div>
+              <dt>正确率</dt>
+              <dd id="accuracyRate">0%</dd>
+            </div>
+            <div>
+              <dt>连对</dt>
+              <dd id="streakCount">0</dd>
+            </div>
+          </dl>
+
+          <button id="clearButton" class="danger-button" type="button">清空词库</button>
+        </section>
+      </aside>
+
+      <section class="practice-panel" aria-labelledby="practiceTitle">
+        <header class="practice-header">
+          <div>
+            <p class="eyebrow">Spelling Drill</p>
+            <h2 id="practiceTitle">拼写练习</h2>
+          </div>
+          <div class="question-counter">
+            <span id="currentNumber">0</span>
+            <span>/</span>
+            <span id="totalNumber">0</span>
+          </div>
+        </header>
+
+        <section id="emptyState" class="empty-state">
+          <h3>上传词表后开始练习</h3>
+          <p>支持每行一个英文单词，或使用逗号添加中文释义。</p>
+        </section>
+
+        <section id="quizState" class="quiz-state" hidden>
+          <div class="meaning-box">
+            <span>释义</span>
+            <strong id="meaningText">-</strong>
+          </div>
+
+          <div class="hint-box" aria-label="字母提示">
+            <p id="hintText">_ _ _ _</p>
+          </div>
+
+          <form id="answerForm" class="answer-form">
+            <label for="answerInput">完整拼写</label>
+            <div class="answer-row">
+              <input id="answerInput" type="text" autocomplete="off" spellcheck="false" />
+              <button class="primary-button" type="submit">提交</button>
+            </div>
+          </form>
+
+          <p id="feedbackMessage" class="feedback-message" role="status" aria-live="polite"></p>
+
+          <div class="practice-actions">
+            <button id="nextButton" class="secondary-button" type="button">下一题</button>
+          </div>
+        </section>
+
+        <section class="mistakes-panel" aria-labelledby="mistakesTitle">
+          <div class="section-title">
+            <h2 id="mistakesTitle">错题</h2>
+            <span id="mistakeCount">0</span>
+          </div>
+          <div id="mistakeList" class="mistake-list"></div>
+        </section>
+      </section>
+    </main>
+
+    <script src="app.js?v=fortoefl-3"></script>
+  </body>
+</html>
