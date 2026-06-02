@@ -189,6 +189,32 @@ dd {
   line-height: 1;
 }
 
+.preset-library {
+  display: grid;
+  gap: 10px;
+}
+
+.preset-library > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.preset-button {
+  width: 100%;
+  border: 1px solid rgba(23, 107, 135, 0.24);
+  background: #eef7f8;
+  color: var(--accent-dark);
+  padding: 0 14px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.preset-button:hover {
+  border-color: var(--accent);
+  background: #e3f2f4;
+}
+
 .manual-import {
   display: grid;
   gap: 10px;
