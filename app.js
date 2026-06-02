@@ -1,10 +1,63 @@
 const STORAGE_KEY = "fortoefl.state.v1";
 const DEFAULT_HINT_SETTING = { mode: "fixed", count: 3 };
 const MAX_HINT_LETTERS = 4;
+const MEANING_LOOKUP_BATCH_SIZE = 6;
+const PRESET_WORD_LISTS = {
+  "toefl-core-a": {
+    name: "托福阅读填空核心词汇A",
+    words: [
+      "abandon", "abolish", "abrupt", "abundant", "accelerate", "access", "accompany", "accumulate",
+      "accurate", "adapt", "adjacent", "adjust", "advocate", "affect", "aggregate", "agriculture",
+      "allocate", "alter", "alternative", "ambiguous", "amend", "analogous", "annual", "anticipate",
+      "apparent", "append", "approach", "approximate", "arbitrary", "architecture", "area", "artificial",
+      "assemble", "assume", "attribute", "available", "benefit", "bias", "bond", "brief", "bulk",
+      "capable", "capacity", "cease", "challenge", "channel", "characteristic", "circumstance",
+      "civilization", "clarify", "coherent", "coincide", "collapse", "colony", "combine", "commence",
+      "commentary", "commodity", "compact", "compensate", "compile", "complex", "component", "compose",
+      "comprehensive", "conceive", "concentrate", "concept", "conclude", "concurrent", "conduct", "confer",
+      "confine", "confirm", "conflict", "conform", "consequence", "conserve", "considerable", "consist",
+      "constant", "constitute", "constrain", "construct", "consume", "contact", "contain", "contemporary",
+      "context", "contract", "contradict", "contribute", "controversy", "conventional", "convert", "core",
+      "correspond", "create", "crucial", "culture", "currency", "cycle", "data", "debate", "decline",
+      "deduce", "define", "demonstrate", "dense", "derive", "design", "detect", "determine", "devote",
+      "diminish", "dimension", "discrete", "displace", "display", "distinct", "distribute", "diverse",
+      "domestic", "dominate", "dynamic", "economy", "edit", "eliminate", "emerge", "emphasis", "empirical",
+      "enable", "encounter", "enhance", "enormous", "ensure", "entity", "environment", "equivalent",
+      "erode", "establish", "estimate", "ethics", "evaluate", "evidence", "evolve", "exceed", "exclude",
+      "exhibit", "expand", "expert", "explicit", "exploit", "expose", "external", "extract", "facilitate",
+      "factor", "feature", "federal", "fluctuate", "focus", "format", "formula", "foundation", "framework",
+      "function", "fundamental", "generate", "global", "goal", "gradual", "grant", "habitat", "hypothesis",
+      "identify", "illustrate", "impact", "implement", "imply", "incentive", "incident", "include",
+      "incorporate", "indicate", "individual", "induce", "inevitable", "infer", "inhibit", "initial",
+      "innovative", "input", "insert", "inspect", "instance", "integrate", "intense", "interact", "internal",
+      "interpret", "intervene", "intrinsic", "isolate", "issue", "justify", "laboratory", "layer", "legacy",
+      "legal", "legislate", "likewise", "locate", "maintain", "major", "manual", "margin", "maximize",
+      "mechanism", "mediate", "medium", "method", "migrate", "minimal", "modify", "monitor", "mutual",
+      "network", "neutral", "notion", "objective", "obtain", "occur", "offset", "option", "orient",
+      "outcome", "overall", "overlap", "parallel", "parameter", "participate", "perceive", "periodic",
+      "persist", "perspective", "phenomenon", "physical", "plausible", "policy", "portion", "potential",
+      "precede", "precise", "predict", "predominant", "preliminary", "preserve", "presume", "previous",
+      "primary", "principal", "principle", "prior", "priority", "proceed", "process", "produce",
+      "professional", "prohibit", "prominent", "proportion", "prosper", "protocol", "provide", "publish",
+      "purchase", "pursue", "qualitative", "quantitative", "radical", "range", "rational", "react",
+      "recover", "refine", "reflect", "region", "regulate", "reinforce", "reject", "release", "relevant",
+      "reliable", "remove", "replace", "represent", "require", "reserve", "resolve", "resource", "restrict",
+      "retain", "reveal", "reverse", "rigid", "role", "route", "scheme", "scope", "section", "secure",
+      "select", "sequence", "significant", "similar", "simulate", "site", "solely", "source", "specific",
+      "sphere", "stable", "statistic", "status", "strategy", "structure", "subsequent", "subsidy",
+      "substitute", "sufficient", "sum", "supplement", "survey", "suspend", "sustain", "symbolic",
+      "target", "technical", "technology", "temporary", "theory", "thereby", "threshold", "topic", "trace",
+      "tradition", "transfer", "transform", "transition", "transmit", "transport", "trend", "trigger",
+      "ultimate", "undergo", "underlie", "uniform", "unique", "utilize", "valid", "variable", "verify",
+      "version", "via", "visible", "volume", "widespread", "withdraw", "yield",
+    ],
+  },
+};
 
 const fileInput = document.querySelector("#wordFile");
 const manualWordText = document.querySelector("#manualWordText");
 const importTextButton = document.querySelector("#importTextButton");
+const presetButtons = document.querySelectorAll("[data-preset-id]");
 const uploadMessage = document.querySelector("#uploadMessage");
 const libraryCount = document.querySelector("#libraryCount");
 const resetButton = document.querySelector("#resetButton");
@@ -51,6 +104,18 @@ fileInput.addEventListener("change", async (event) => {
 
 importTextButton.addEventListener("click", () => {
   importWordsFromText(manualWordText.value);
+});
+
+presetButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const preset = PRESET_WORD_LISTS[button.dataset.presetId];
+    if (!preset) return;
+
+    importWordsFromText(preset.words.join("\n"), {
+      sourceName: preset.name,
+      emptyFocusTarget: button,
+    });
+  });
 });
 
 answerForm.addEventListener("submit", (event) => {
@@ -136,12 +201,12 @@ function submitAnswer() {
   answerInput.focus();
 }
 
-async function importWordsFromText(text) {
+async function importWordsFromText(text, options = {}) {
   const words = parseWordList(text);
 
   if (words.length === 0) {
     showUploadMessage("没有找到可用的英文单词。", "error");
-    manualWordText.focus();
+    (options.emptyFocusTarget ?? manualWordText).focus();
     return;
   }
 
@@ -153,21 +218,26 @@ async function importWordsFromText(text) {
   saveState();
   render();
   const lookupCount = words.filter((word) => word.needsMeaningLookup).length;
+  const sourceLabel = options.sourceName ? `${options.sourceName}：` : "";
   showUploadMessage(
     lookupCount > 0
-      ? `已导入 ${words.length} 个单词，正在自动补全 ${lookupCount} 个释义。`
-      : `已导入 ${words.length} 个单词。`,
+      ? `${sourceLabel}已导入 ${words.length} 个单词，正在自动补全 ${lookupCount} 个释义。`
+      : `${sourceLabel}已导入 ${words.length} 个单词。`,
     "success"
   );
   answerInput.focus();
 
   if (lookupCount > 0) {
     importTextButton.disabled = true;
-    const filledCount = await enrichMissingMeanings(state.words);
+    setPresetButtonsDisabled(true);
+    const filledCount = await enrichMissingMeanings(state.words, (completedCount) => {
+      showUploadMessage(`${sourceLabel}已导入 ${words.length} 个单词，正在补全释义 ${completedCount}/${lookupCount}。`, "success");
+    });
     importTextButton.disabled = false;
+    setPresetButtonsDisabled(false);
     saveState();
     render();
-    showUploadMessage(`已导入 ${words.length} 个单词，自动补全 ${filledCount} 个释义。`, "success");
+    showUploadMessage(`${sourceLabel}已导入 ${words.length} 个单词，自动补全 ${filledCount} 个释义。`, "success");
   }
 }
 
@@ -215,19 +285,34 @@ function parseWordLine(line) {
   };
 }
 
-async function enrichMissingMeanings(words) {
+async function enrichMissingMeanings(words, onProgress = () => {}) {
   let filledCount = 0;
+  let completedCount = 0;
+  const pendingWords = words.filter((entry) => entry.needsMeaningLookup);
 
-  await Promise.all(words.map(async (entry) => {
-    if (!entry.needsMeaningLookup) return;
+  for (let index = 0; index < pendingWords.length; index += MEANING_LOOKUP_BATCH_SIZE) {
+    const batch = pendingWords.slice(index, index + MEANING_LOOKUP_BATCH_SIZE);
 
-    const meaning = await lookupChineseMeaning(entry.word);
-    entry.meaning = meaning || "暂无释义";
-    entry.needsMeaningLookup = false;
-    if (meaning) filledCount += 1;
-  }));
+    await Promise.all(batch.map(async (entry) => {
+      const meaning = await lookupChineseMeaning(entry.word);
+      entry.meaning = meaning || "暂无释义";
+      entry.needsMeaningLookup = false;
+      if (meaning) filledCount += 1;
+    }));
+
+    completedCount += batch.length;
+    saveState();
+    render();
+    onProgress(completedCount);
+  }
 
   return filledCount;
+}
+
+function setPresetButtonsDisabled(disabled) {
+  presetButtons.forEach((button) => {
+    button.disabled = disabled;
+  });
 }
 
 async function lookupChineseMeaning(word) {
