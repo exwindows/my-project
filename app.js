@@ -76,6 +76,8 @@ const hintText = document.querySelector("#hintText");
 const answerForm = document.querySelector("#answerForm");
 const answerInput = document.querySelector("#answerInput");
 const feedbackMessage = document.querySelector("#feedbackMessage");
+const previousButton = document.querySelector("#previousButton");
+const revealButton = document.querySelector("#revealButton");
 const nextButton = document.querySelector("#nextButton");
 const mistakeCount = document.querySelector("#mistakeCount");
 const mistakeList = document.querySelector("#mistakeList");
@@ -123,6 +125,16 @@ answerForm.addEventListener("submit", (event) => {
   submitAnswer();
 });
 
+previousButton.addEventListener("click", () => {
+  moveToPreviousWord();
+  render();
+  answerInput.focus();
+});
+
+revealButton.addEventListener("click", () => {
+  revealCurrentAnswer();
+});
+
 nextButton.addEventListener("click", () => {
   moveToNextWord();
   render();
@@ -135,6 +147,7 @@ resetButton.addEventListener("click", () => {
   state.stats = createEmptyStats();
   state.currentIndex = 0;
   state.currentHint = createHintForWord(state.words[0].word, state.hintSetting);
+  state.revealedWordId = null;
   saveState();
   render();
   showFeedback("练习已重新开始。", "neutral");
@@ -187,11 +200,13 @@ function submitAnswer() {
   if (answer === expected) {
     state.stats.correct += 1;
     state.stats.streak += 1;
+    state.revealedWordId = null;
     showFeedback("正确。准备下一题。", "success");
     moveToNextWord({ keepFeedback: true });
   } else {
     state.stats.streak = 0;
     addMistake(currentWord, answerInput.value);
+    state.revealedWordId = currentWord.id;
     showFeedback(`错误。正确拼写是 ${currentWord.word}。`, "error");
   }
 
@@ -246,11 +261,42 @@ function moveToNextWord(options = {}) {
 
   state.currentIndex = (state.currentIndex + 1) % state.words.length;
   state.currentHint = createHintForWord(state.words[state.currentIndex].word, state.hintSetting);
+  state.revealedWordId = null;
   if (!options.keepFeedback) {
     feedbackMessage.textContent = "";
     feedbackMessage.dataset.type = "";
   }
   saveState();
+}
+
+function moveToPreviousWord() {
+  if (state.words.length === 0) return;
+
+  state.currentIndex = (state.currentIndex - 1 + state.words.length) % state.words.length;
+  state.currentHint = createHintForWord(state.words[state.currentIndex].word, state.hintSetting);
+  state.revealedWordId = null;
+  feedbackMessage.textContent = "";
+  feedbackMessage.dataset.type = "";
+  answerInput.value = "";
+  saveState();
+}
+
+function revealCurrentAnswer() {
+  const currentWord = getCurrentWord();
+  if (!currentWord) return;
+
+  if (state.revealedWordId !== currentWord.id) {
+    state.stats.attempted += 1;
+    state.stats.streak = 0;
+    addMistake(currentWord, "不会");
+    state.revealedWordId = currentWord.id;
+  }
+
+  answerInput.value = "";
+  showFeedback(`答案是 ${currentWord.word}。`, "error");
+  saveState();
+  render();
+  answerInput.focus();
 }
 
 function parseWordList(text) {
@@ -428,6 +474,9 @@ function render() {
   quizState.hidden = !hasWords;
   resetButton.disabled = !hasWords;
   clearButton.disabled = !hasWords;
+  previousButton.disabled = !hasWords;
+  revealButton.disabled = !hasWords;
+  nextButton.disabled = !hasWords;
   renderHintButtons();
 
   if (currentWord) {
@@ -472,6 +521,7 @@ function createFreshState(words, hintSetting = DEFAULT_HINT_SETTING) {
     currentIndex: 0,
     currentHint: words[0] ? createHintForWord(words[0].word, normalizedHint) : "",
     hintSetting: normalizedHint,
+    revealedWordId: null,
     stats: createEmptyStats(),
   };
 }
@@ -537,6 +587,7 @@ function loadState() {
       currentIndex: Number.isInteger(saved.currentIndex) ? saved.currentIndex : 0,
       currentHint: saved.currentHint || "",
       hintSetting: normalizeHintSetting(saved.hintSetting),
+      revealedWordId: saved.revealedWordId ?? null,
       stats: {
         ...createEmptyStats(),
         ...(saved.stats ?? {}),
