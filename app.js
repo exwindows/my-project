@@ -1,5 +1,6 @@
 const STORAGE_KEY = "fortoefl.state.v1";
-const DEFAULT_HINT_LETTERS = 3;
+const DEFAULT_HINT_SETTING = { mode: "fixed", count: 3 };
+const MAX_HINT_LETTERS = 4;
 
 const fileInput = document.querySelector("#wordFile");
 const manualWordText = document.querySelector("#manualWordText");
@@ -8,6 +9,7 @@ const uploadMessage = document.querySelector("#uploadMessage");
 const libraryCount = document.querySelector("#libraryCount");
 const resetButton = document.querySelector("#resetButton");
 const clearButton = document.querySelector("#clearButton");
+const hintButtons = document.querySelectorAll("[data-hint-option]");
 const attemptedCount = document.querySelector("#attemptedCount");
 const correctCount = document.querySelector("#correctCount");
 const accuracyRate = document.querySelector("#accuracyRate");
@@ -67,7 +69,7 @@ resetButton.addEventListener("click", () => {
 
   state.stats = createEmptyStats();
   state.currentIndex = 0;
-  state.currentHint = createHintForWord(state.words[0].word);
+  state.currentHint = createHintForWord(state.words[0].word, state.hintSetting);
   saveState();
   render();
   showFeedback("练习已重新开始。", "neutral");
@@ -75,10 +77,31 @@ resetButton.addEventListener("click", () => {
 });
 
 clearButton.addEventListener("click", () => {
-  state = createFreshState([]);
+  state = createFreshState([], state.hintSetting);
   saveState();
   render();
   showUploadMessage("词库已清空。", "success");
+});
+
+hintButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    const option = button.dataset.hintOption;
+    state.hintSetting = option === "random"
+      ? { mode: "random", count: null }
+      : { mode: "fixed", count: Number(option) };
+
+    const currentWord = getCurrentWord();
+    if (currentWord) {
+      state.currentHint = createHintForWord(currentWord.word, state.hintSetting);
+      showFeedback(`提示字母数已切换为 ${formatHintSetting(state.hintSetting)}。`, "neutral");
+      answerInput.focus();
+    } else {
+      showUploadMessage(`提示字母数已切换为 ${formatHintSetting(state.hintSetting)}。`, "success");
+    }
+
+    saveState();
+    render();
+  });
 });
 
 function submitAnswer() {
@@ -122,7 +145,7 @@ async function importWordsFromText(text) {
     return;
   }
 
-  state = createFreshState(words);
+  state = createFreshState(words, state.hintSetting);
   manualWordText.value = "";
   answerInput.value = "";
   feedbackMessage.textContent = "";
@@ -152,7 +175,7 @@ function moveToNextWord(options = {}) {
   if (state.words.length === 0) return;
 
   state.currentIndex = (state.currentIndex + 1) % state.words.length;
-  state.currentHint = createHintForWord(state.words[state.currentIndex].word);
+  state.currentHint = createHintForWord(state.words[state.currentIndex].word, state.hintSetting);
   if (!options.keepFeedback) {
     feedbackMessage.textContent = "";
     feedbackMessage.dataset.type = "";
@@ -253,14 +276,15 @@ function cleanWord(value) {
     .replace(/\s+/g, " ");
 }
 
-function createHintForWord(word) {
+function createHintForWord(word, hintSetting = DEFAULT_HINT_SETTING) {
   const letters = Array.from(word);
   const letterIndexes = letters
     .map((char, index) => ({ char, index }))
     .filter(({ char }) => /[a-z]/i.test(char))
     .map(({ index }) => index);
 
-  const revealIndexes = new Set(letterIndexes.slice(0, DEFAULT_HINT_LETTERS));
+  const revealCount = getRevealCount(letterIndexes.length, hintSetting);
+  const revealIndexes = new Set(letterIndexes.slice(0, revealCount));
 
   return letters
     .map((char, index) => {
@@ -268,6 +292,18 @@ function createHintForWord(word) {
       return revealIndexes.has(index) ? char : "_";
     })
     .join(" ");
+}
+
+function getRevealCount(letterCount, hintSetting) {
+  if (letterCount === 0) return 0;
+
+  if (hintSetting?.mode === "random") {
+    const maxCount = Math.min(MAX_HINT_LETTERS, letterCount);
+    return Math.floor(Math.random() * maxCount) + 1;
+  }
+
+  const fixedCount = Number(hintSetting?.count ?? DEFAULT_HINT_SETTING.count);
+  return Math.min(Math.max(1, fixedCount), letterCount);
 }
 
 function addMistake(word, answer) {
@@ -307,10 +343,11 @@ function render() {
   quizState.hidden = !hasWords;
   resetButton.disabled = !hasWords;
   clearButton.disabled = !hasWords;
+  renderHintButtons();
 
   if (currentWord) {
     meaningText.textContent = currentWord.meaning;
-    hintText.textContent = state.currentHint || createHintForWord(currentWord.word);
+    hintText.textContent = state.currentHint || createHintForWord(currentWord.word, state.hintSetting);
   }
 
   renderMistakes();
@@ -342,11 +379,14 @@ function getCurrentWord() {
   return state.words[state.currentIndex] ?? state.words[0];
 }
 
-function createFreshState(words) {
+function createFreshState(words, hintSetting = DEFAULT_HINT_SETTING) {
+  const normalizedHint = normalizeHintSetting(hintSetting);
+
   return {
     words,
     currentIndex: 0,
-    currentHint: words[0] ? createHintForWord(words[0].word) : "",
+    currentHint: words[0] ? createHintForWord(words[0].word, normalizedHint) : "",
+    hintSetting: normalizedHint,
     stats: createEmptyStats(),
   };
 }
@@ -374,6 +414,34 @@ function showFeedback(message, type) {
   feedbackMessage.dataset.type = type;
 }
 
+function formatHintSetting(hintSetting) {
+  return hintSetting?.mode === "random" ? "随机" : `${hintSetting?.count ?? DEFAULT_HINT_SETTING.count} 个`;
+}
+
+function normalizeHintSetting(hintSetting) {
+  if (hintSetting?.mode === "random") {
+    return { mode: "random", count: null };
+  }
+
+  const count = Number(hintSetting?.count ?? DEFAULT_HINT_SETTING.count);
+  return {
+    mode: "fixed",
+    count: Math.min(Math.max(1, count), MAX_HINT_LETTERS),
+  };
+}
+
+function renderHintButtons() {
+  const hintSetting = state.hintSetting ?? DEFAULT_HINT_SETTING;
+
+  hintButtons.forEach((button) => {
+    const isActive = hintSetting.mode === "random"
+      ? button.dataset.hintOption === "random"
+      : button.dataset.hintOption === String(hintSetting.count);
+    button.classList.toggle("is-active", isActive);
+    button.setAttribute("aria-pressed", String(isActive));
+  });
+}
+
 function loadState() {
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -383,6 +451,7 @@ function loadState() {
       words: saved.words,
       currentIndex: Number.isInteger(saved.currentIndex) ? saved.currentIndex : 0,
       currentHint: saved.currentHint || "",
+      hintSetting: normalizeHintSetting(saved.hintSetting),
       stats: {
         ...createEmptyStats(),
         ...(saved.stats ?? {}),
