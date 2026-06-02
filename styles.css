@@ -288,6 +288,39 @@ dd {
   font-weight: 950;
 }
 
+.hint-settings {
+  display: grid;
+  gap: 10px;
+}
+
+.hint-settings > span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.hint-button-row {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.hint-option {
+  min-width: 0;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  font-weight: 900;
+  padding: 0 8px;
+}
+
+.hint-option.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: white;
+}
+
 .primary-button,
 .secondary-button,
 .ghost-button,
